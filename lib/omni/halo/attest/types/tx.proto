@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package halo.attest.types;
+
+import "cosmos/msg/v1/msg.proto";
+
+option go_package = "halo/attest/types";
+
+// MsgService defines all the gRPC methods exposed by the attest module.
+service MsgService {
+  option (cosmos.msg.v1.service) = true;
+
+  // AddVotes processes aggregate votes included in a proposed or finalised block.
+  rpc AddVotes (MsgAddVotes) returns (AddVotesResponse);
+}
+
+
+// MsgAddVotes contains multiple aggregated votes for different cross-chain Blocks.
+message MsgAddVotes {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  repeated AggVote votes = 2;
+}
+
+message AddVotesResponse {}
+
+// Attestation contains quorum votes for a cross-chain block of a specific validator set.
+message Attestation {
+  AttestHeader      attest_header    = 1; // AttestHeader uniquely identifies an attestation that requires quorum votes.
+  BlockHeader       block_header     = 2; // BlockHeader identifies the cross-chain Block
+  bytes             msg_root         = 3; // Merkle root of all the messages in the cross-chain Block
+  repeated SigTuple signatures       = 4; // Validator signatures and public keys
+  uint64            validator_set_id = 5; // Validator set that approved this attestation.
+}
+
+
+// AggVote aggregates multiple votes of a cross-chain Block.
+message AggVote {
+  AttestHeader      attest_header    = 1; // AttestHeader uniquely identifies an attestation that requires quorum votes.
+  BlockHeader       block_header     = 2; // BlockHeader identifies the cross-chain Block
+  bytes             msg_root         = 3; // Merkle root of all the messages in the cross-chain Block
+  repeated SigTuple signatures       = 4; // Validator signatures and public keys
+}
+
+// Votes contains multiple votes for different cross-chain Blocks. Usually by the same validator.
+message Votes {
+  repeated Vote votes = 1;
+}
+
+// Vote by a validator of a cross-chain Block.
+message Vote {
+  AttestHeader attest_header   = 1; // AttestHeader uniquely identifies an attestation that requires quorum votes.
+  BlockHeader  block_header    = 2; // BlockHeader identifies the cross-chain Block
+  bytes        msg_root        = 3; // Merkle root of all the messages in the cross-chain Block
+  SigTuple     signature       = 4; // Validator signatures and public keys
+}
+
+// BlockHeader uniquely identifies a cross chain block.
+message BlockHeader {
+  uint64 chain_id     = 1; // Source chain ID as per https://chainlist.org
+  uint64 block_height = 2; // Height of the source-chain block
+  bytes  block_hash   = 3; // Hash of the source-chain block
+}
+
+// AttestHeader uniquely identifies an attestation that requires quorum votes.
+// This is used to determine duplicate votes.
+message AttestHeader {
+  uint64 consensus_chain_id = 1; // Omni consensus chain ID this attestation/vote belangs to. Used for replay-protection.
+  uint64 source_chain_id    = 2; // Source Chain ID as per https://chainlist.org
+  uint32 conf_level         = 3; // Confirmation level (aka version) of the cross-chain block/attestation.
+  uint64 attest_offset      = 4; // Monotonically increasing offset of this vote per chain version. 1-indexed.
+}
+
+// SigTuple is a validator public key and signature (over the attestation root).
+message SigTuple {
+  bytes validator_address = 1; // Validator ethereum address; 20 bytes.
+  bytes signature         = 2; // Validator signature over AttestationRoot; Ethereum 65 bytes [R || S || V] format.
+}
